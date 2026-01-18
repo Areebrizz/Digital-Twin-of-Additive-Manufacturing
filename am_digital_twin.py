@@ -114,7 +114,8 @@ with st.sidebar:
     
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("🚀 Run Simulation", use_container_width=True):
+        run_button = st.button("🚀 Run Simulation", use_container_width=True)
+        if run_button:
             with st.spinner("Simulating..."):
                 time.sleep(1)  # Simulate computation time
                 st.session_state.current_run = {
@@ -126,13 +127,16 @@ with st.sidebar:
                         "layer_thickness": layer_thickness,
                         "preheat_temp": preheat_temp,
                         "material": material,
-                        "VED": VED
+                        "VED": VED,
+                        "beam_diameter": beam_diameter,
+                        "scan_strategy": scan_strategy
                     }
                 }
                 st.rerun()
     
     with col2:
-        if st.button("💾 Save Run", use_container_width=True):
+        save_button = st.button("💾 Save Run", use_container_width=True)
+        if save_button:
             if st.session_state.current_run:
                 st.session_state.simulation_history.append(st.session_state.current_run.copy())
                 st.success("Run saved!")
@@ -173,7 +177,7 @@ def heat_transfer_model(params):
     # Parameters
     laser_power = params["laser_power"]
     scan_speed = params["scan_speed"]
-    beam_radius = beam_diameter / 2000  # Convert to mm
+    beam_radius = params.get("beam_diameter", 100) / 2000  # Convert to mm
     material = MATERIAL_DB[params["material"]]
     
     # Create grid
@@ -197,9 +201,15 @@ def heat_transfer_model(params):
 def calculate_cooling_rate(T_dist):
     """Estimate cooling rate from temperature distribution"""
     # Simplified cooling rate estimation
-    grad = np.gradient(T_dist)
-    cooling_rate = np.sqrt(grad[0]**2 + grad[1]**2).mean() * 100
+    grad_x, grad_y = np.gradient(T_dist)
+    cooling_rate = np.sqrt(grad_x**2 + grad_y**2).mean() * 100
     return cooling_rate
+
+def calculate_thermal_gradient(T_dist):
+    """Calculate maximum thermal gradient"""
+    grad_x, grad_y = np.gradient(T_dist)
+    thermal_gradient = np.sqrt(grad_x**2 + grad_y**2).max()
+    return thermal_gradient
 
 def predict_grain_size(cooling_rate):
     """Hunt model for grain size prediction"""
@@ -248,15 +258,15 @@ def predict_residual_stress(params):
     
     return min(residual_stress, 800)  # Cap at 800 MPa
 
-def simulate_microstructure(grain_size):
+def simulate_microstructure(grain_size, material_name):
     """Generate simulated microstructure data"""
     phases = {}
     
-    if st.session_state.current_run.get("params", {}).get("material") == "Ti-6Al-4V":
+    if material_name == "Ti-6Al-4V":
         phases = {"Alpha": 70, "Beta": 20, "Martensite": 10}
-    elif st.session_state.current_run.get("params", {}).get("material") == "Inconel 718":
+    elif material_name == "Inconel 718":
         phases = {"Gamma": 60, "Gamma'": 30, "Carbides": 10}
-    elif st.session_state.current_run.get("params", {}).get("material") == "SS316L":
+    elif material_name == "SS316L":
         phases = {"Austenite": 85, "Ferrite": 10, "Sigma": 5}
     else:  # AlSi10Mg
         phases = {"Aluminum": 90, "Silicon": 8, "Mg2Si": 2}
@@ -270,10 +280,11 @@ if st.session_state.current_run:
     # Calculate metrics
     X, Y, T_dist = heat_transfer_model(params)
     cooling_rate = calculate_cooling_rate(T_dist)
+    thermal_gradient = calculate_thermal_gradient(T_dist)
     grain_size = predict_grain_size(cooling_rate)
     porosity_risk = predict_porosity(params)
     residual_stress = predict_residual_stress(params)
-    phases = simulate_microstructure(grain_size)
+    phases = simulate_microstructure(grain_size, params["material"])
     
     # Create tabs
     tab1, tab2, tab3, tab4 = st.tabs([
@@ -335,7 +346,7 @@ if st.session_state.current_run:
             with metrics_col2:
                 st.metric("VED", f"{params['VED']:.1f} J/mm³")
                 st.metric("Heat Affected Zone", f"{(T_dist > 500).sum()/100:.2f} mm²")
-                st.metric("Thermal Gradient", f"{np.gradient(T_dist).max():.0f} °C/mm")
+                st.metric("Thermal Gradient", f"{thermal_gradient:.0f} °C/mm")
             
             st.divider()
             
@@ -371,7 +382,8 @@ if st.session_state.current_run:
         with col1:
             st.metric("Predicted Grain Size", f"{grain_size:.1f} µm")
             st.metric("Cooling Rate", f"{cooling_rate:.0f} °C/s")
-            st.metric("Phase Ratio", f"{phases.get('Martensite', phases.get('Austenite', 0)):.0f}%")
+            primary_phase = list(phases.keys())[0]
+            st.metric(f"{primary_phase} Content", f"{phases[primary_phase]:.0f}%")
         
         with col2:
             # Phase distribution pie chart
@@ -461,7 +473,8 @@ if st.session_state.current_run:
             st.plotly_chart(fig_gauge1, use_container_width=True)
             
             # Lack of fusion gauge
-            lof_risk = max(0, 100 - params['VED'] / MATERIAL_DB[params['material']]['optimal_ved'] * 100)
+            optimal_ved = MATERIAL_DB[params['material']]['optimal_ved']
+            lof_risk = max(0, 100 - params['VED'] / optimal_ved * 100)
             
             fig_gauge2 = go.Figure(go.Indicator(
                 mode="gauge+number",
@@ -495,7 +508,7 @@ if st.session_state.current_run:
                     stress_map[i, j] = residual_stress * np.exp(-distance/30)
             
             # Add scanning pattern effect
-            if scan_strategy == "Bidirectional":
+            if params.get("scan_strategy", "Bidirectional") == "Bidirectional":
                 stress_map += residual_stress * 0.3 * np.sin(np.linspace(0, 4*np.pi, 100))[:, None]
             
             fig_stress = px.imshow(
@@ -505,12 +518,12 @@ if st.session_state.current_run:
                 labels={'color': 'Stress (MPa)'}
             )
             
-            st.plotly_chart(fig_stress, use_container_width=True)
+            st.plotly_chart(fig_stress, width='stretch')
             
             # Balling effect indicator
             st.subheader("Balling Effect Risk")
             
-            balling_risk = max(0, params['VED'] / MATERIAL_DB[params['material']]['optimal_ved'] - 1) * 100
+            balling_risk = max(0, params['VED'] / optimal_ved - 1) * 100
             
             fig_balling = go.Figure(go.Indicator(
                 mode="number+gauge",
@@ -530,7 +543,7 @@ if st.session_state.current_run:
             ))
             
             fig_balling.update_layout(height=200)
-            st.plotly_chart(fig_balling, use_container_width=True)
+            st.plotly_chart(fig_balling, width='stretch')
     
     with tab4:
         st.subheader("Process Window Optimization")
@@ -589,7 +602,7 @@ if st.session_state.current_run:
                 showlegend=True
             )
             
-            st.plotly_chart(fig_ashby, use_container_width=True)
+            st.plotly_chart(fig_ashby, width='stretch')
         
         with col2:
             st.subheader("Optimization")
@@ -607,6 +620,7 @@ if st.session_state.current_run:
             # Parameter suggestions
             st.subheader("Suggestions")
             
+            ved_ratio = params['VED'] / optimal_ved
             if ved_ratio < 0.8:
                 st.info("🔺 Increase laser power or decrease scan speed")
             elif ved_ratio > 1.2:
@@ -658,16 +672,19 @@ if st.session_state.current_run:
     with adj_col1:
         if st.button("+10% Power", use_container_width=True):
             params["laser_power"] *= 1.1
+            params["VED"] = params["laser_power"] / (params["scan_speed"] * params["hatch_spacing"] * params["layer_thickness"])
             st.rerun()
     
     with adj_col2:
         if st.button("-10% Speed", use_container_width=True):
             params["scan_speed"] *= 0.9
+            params["VED"] = params["laser_power"] / (params["scan_speed"] * params["hatch_spacing"] * params["layer_thickness"])
             st.rerun()
     
     with adj_col3:
         if st.button("Optimize Hatch", use_container_width=True):
             params["hatch_spacing"] = 0.1  # Optimal default
+            params["VED"] = params["laser_power"] / (params["scan_speed"] * params["hatch_spacing"] * params["layer_thickness"])
             st.rerun()
     
     with adj_col4:
@@ -680,7 +697,6 @@ else:
     col1, col2, col3 = st.columns([1, 2, 1])
     
     with col2:
-        st.image("https://img.icons8.com/color/480/000000/3d-printer.png", width=200)
         st.markdown("""
         <div style='text-align: center; padding: 2rem;'>
             <h2>Welcome to the AM Digital Twin</h2>
@@ -706,7 +722,9 @@ else:
                         "layer_thickness": 0.05,
                         "preheat_temp": 200,
                         "material": "Ti-6Al-4V",
-                        "VED": 75.0
+                        "VED": 75.0,
+                        "beam_diameter": 100,
+                        "scan_strategy": "Bidirectional"
                     }
                 }
                 st.rerun()
@@ -722,7 +740,9 @@ else:
                         "layer_thickness": 0.04,
                         "preheat_temp": 100,
                         "material": "SS316L",
-                        "VED": 104.2
+                        "VED": 104.2,
+                        "beam_diameter": 100,
+                        "scan_strategy": "Bidirectional"
                     }
                 }
                 st.rerun()
@@ -738,7 +758,9 @@ else:
                         "layer_thickness": 0.03,
                         "preheat_temp": 300,
                         "material": "Inconel 718",
-                        "VED": 111.1
+                        "VED": 111.1,
+                        "beam_diameter": 80,
+                        "scan_strategy": "Island"
                     }
                 }
                 st.rerun()
