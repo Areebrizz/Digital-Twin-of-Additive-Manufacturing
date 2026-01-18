@@ -9,7 +9,6 @@ matplotlib.use('Agg')
 from scipy import ndimage
 from datetime import datetime
 import base64
-from fpdf import FPDF
 import time
 
 # Page configuration
@@ -44,12 +43,6 @@ if st.session_state.theme == 'light':
             --shadow: rgba(0,0,0,0.05);
             --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
         }
-        
-        .theme-toggle {
-            background: var(--bg-secondary);
-            color: var(--text-primary);
-            border: 1px solid var(--border-color);
-        }
     </style>
     """
 else:
@@ -70,18 +63,6 @@ else:
             --danger-color: #e74c3c;
             --shadow: rgba(0,0,0,0.2);
             --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-        }
-        
-        .theme-toggle {
-            background: var(--bg-card);
-            color: var(--text-primary);
-            border: 1px solid var(--border-color);
-        }
-        
-        .plotly-graph-div .js-plotly-plot, 
-        .plotly-graph-div .plotly,
-        .plot-container {
-            background: var(--bg-card) !important;
         }
     </style>
     """
@@ -175,54 +156,10 @@ st.markdown(theme_css + """
         border-color: var(--accent-color);
     }
     
-    /* Sidebar styling */
-    .sidebar .sidebar-content {
-        background: var(--bg-primary);
-        border-right: 1px solid var(--border-color);
-    }
-    
-    /* Streamlit native elements override */
-    .stSlider > div > div > div {
-        background: var(--accent-color);
-    }
-    
-    .stButton > button {
-        background: var(--accent-color);
-        color: white;
-        border: none;
-        padding: 0.5rem 1rem;
-        border-radius: 4px;
-        font-weight: 500;
-        transition: background-color 0.2s;
-    }
-    
-    .stButton > button:hover {
-        background: var(--accent-hover);
-        box-shadow: 0 2px 4px rgba(52, 152, 219, 0.2);
-    }
-    
     /* Status indicators */
     .status-optimal { color: var(--success-color); }
     .status-warning { color: var(--warning-color); }
     .status-critical { color: var(--danger-color); }
-    
-    /* Material color chips */
-    .material-chip {
-        display: inline-block;
-        padding: 0.2rem 0.6rem;
-        border-radius: 4px;
-        font-size: 0.8rem;
-        font-weight: 500;
-        margin: 0.1rem;
-    }
-    
-    /* Citation style */
-    .citation {
-        font-size: 0.75rem;
-        color: var(--text-muted);
-        font-style: italic;
-        margin-top: 0.5rem;
-    }
     
     /* Info box */
     .info-box {
@@ -231,24 +168,6 @@ st.markdown(theme_css + """
         border-radius: 6px;
         border-left: 4px solid var(--accent-color);
         margin-bottom: 1.5rem;
-    }
-    
-    /* Theme toggle button */
-    .theme-toggle-btn {
-        position: fixed;
-        top: 10px;
-        right: 10px;
-        z-index: 1000;
-        background: var(--bg-card);
-        border: 1px solid var(--border-color);
-        border-radius: 50%;
-        width: 40px;
-        height: 40px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        box-shadow: var(--card-shadow);
     }
     
     /* Credit footer */
@@ -277,8 +196,6 @@ if 'simulation_history' not in st.session_state:
     st.session_state.simulation_history = []
 if 'current_run' not in st.session_state:
     st.session_state.current_run = {}
-if 'comparison_mode' not in st.session_state:
-    st.session_state.comparison_mode = False
 
 # Material Properties Database
 MATERIAL_DB = {
@@ -328,15 +245,6 @@ MATERIAL_DB = {
     }
 }
 
-# Theme toggle button
-col1, col2, col3 = st.columns([3, 1, 1])
-with col3:
-    theme_icon = "🌙" if st.session_state.theme == 'light' else "☀️"
-    theme_label = "Dark" if st.session_state.theme == 'light' else "Light"
-    if st.button(f"{theme_icon} {theme_label} Mode", key="theme_toggle"):
-        st.session_state.theme = 'dark' if st.session_state.theme == 'light' else 'light'
-        st.rerun()
-
 # Title with academic styling
 st.markdown('<h1 class="main-title">🏭 Additive Manufacturing Digital Twin</h1>', unsafe_allow_html=True)
 
@@ -350,6 +258,15 @@ st.markdown(f"""
     </div>
 </div>
 """, unsafe_allow_html=True)
+
+# Theme toggle
+col1, col2 = st.columns([6, 1])
+with col2:
+    theme_icon = "🌙" if st.session_state.theme == 'light' else "☀️"
+    theme_label = "Dark" if st.session_state.theme == 'light' else "Light"
+    if st.button(f"{theme_icon} {theme_label} Mode", key="theme_toggle"):
+        st.session_state.theme = 'dark' if st.session_state.theme == 'light' else 'light'
+        st.rerun()
 
 # Sidebar with clean academic controls
 with st.sidebar:
@@ -681,37 +598,27 @@ if st.session_state.current_run:
             
             fig_3d.update_layout(
                 title=dict(text=f"Temperature Distribution - {params['material']}", 
-                          font=dict(size=14, color='var(--text-primary)')),
+                          font=dict(size=14, color='#2c3e50')),
                 scene=dict(
                     xaxis_title="X (mm)",
                     yaxis_title="Y (mm)", 
                     zaxis_title="Temperature (°C)",
-                    camera=dict(eye=dict(x=1.7, y=1.7, z=0.8)),
-                    bgcolor='var(--bg-card)'
+                    camera=dict(eye=dict(x=1.7, y=1.7, z=0.8))
                 ),
                 height=450,
-                margin=dict(l=0, r=0, t=40, b=0),
-                paper_bgcolor='var(--bg-primary)',
-                plot_bgcolor='var(--bg-primary)',
-                font=dict(color='var(--text-primary)')
+                margin=dict(l=0, r=0, t=40, b=0)
             )
             
             st.plotly_chart(fig_3d, use_container_width=True)
             
             # 2D Heatmap
             st.markdown('<div class="subsection-header">2D Cross-section</div>', unsafe_allow_html=True)
-            fig_2d = go.Figure(data=[
-                go.Heatmap(z=T_field, colorscale='Viridis')
-            ])
-            
+            fig_2d = px.imshow(T_field, color_continuous_scale='Viridis')
             fig_2d.update_layout(
                 xaxis_title="X (mm)",
                 yaxis_title="Y (mm)",
                 height=300,
-                margin=dict(l=0, r=0, t=20, b=0),
-                paper_bgcolor='var(--bg-primary)',
-                plot_bgcolor='var(--bg-primary)',
-                font=dict(color='var(--text-primary)')
+                margin=dict(l=0, r=0, t=20, b=0)
             )
             
             st.plotly_chart(fig_2d, use_container_width=True)
@@ -759,15 +666,12 @@ if st.session_state.current_run:
             fig_grain = go.Figure(go.Indicator(
                 mode="number+gauge",
                 value=grain_size,
-                number={'suffix': " µm", 'font': {'size': 24, 'color': 'var(--text-primary)'}},
+                number={'suffix': " µm", 'font': {'size': 24}},
                 domain={'x': [0, 1], 'y': [0, 1]},
-                title={'text': "Average Grain Size", 'font': {'size': 14, 'color': 'var(--text-primary)'}},
+                title={'text': "Average Grain Size", 'font': {'size': 14}},
                 gauge={
-                    'axis': {'range': [0, 200], 'tickwidth': 1, 'tickcolor': 'var(--text-primary)'},
+                    'axis': {'range': [0, 200], 'tickwidth': 1},
                     'bar': {'color': mat_props['color']},
-                    'bgcolor': "var(--bg-card)",
-                    'borderwidth': 2,
-                    'bordercolor': "var(--border-color)",
                     'steps': [
                         {'range': [0, 50], 'color': 'rgba(39, 174, 96, 0.1)'},
                         {'range': [50, 100], 'color': 'rgba(243, 156, 18, 0.1)'},
@@ -778,8 +682,7 @@ if st.session_state.current_run:
             
             fig_grain.update_layout(
                 height=200,
-                margin=dict(l=20, r=20, t=50, b=20),
-                paper_bgcolor='var(--bg-primary)'
+                margin=dict(l=20, r=20, t=50, b=20)
             )
             
             st.plotly_chart(fig_grain, use_container_width=True)
@@ -803,10 +706,8 @@ if st.session_state.current_run:
             fig_structure = px.imshow(grain_data, color_continuous_scale='gray')
             fig_structure.update_layout(
                 coloraxis_showscale=False,
-                margin=dict(l=0, r=0, t=30, b=0),
-                paper_bgcolor='var(--bg-primary)',
-                plot_bgcolor='var(--bg-primary)',
-                font=dict(color='var(--text-primary)')
+                height=300,
+                margin=dict(l=0, r=0, t=30, b=0)
             )
             
             st.plotly_chart(fig_structure, use_container_width=True)
@@ -829,14 +730,7 @@ if st.session_state.current_run:
             
             fig_phases.update_layout(
                 height=300,
-                margin=dict(l=20, r=20, t=20, b=20),
-                paper_bgcolor='var(--bg-primary)',
-                plot_bgcolor='var(--bg-primary)',
-                legend=dict(
-                    font=dict(color='var(--text-primary)'),
-                    bgcolor='var(--bg-card)',
-                    bordercolor='var(--border-color)'
-                )
+                margin=dict(l=20, r=20, t=20, b=20)
             )
             
             st.plotly_chart(fig_phases, use_container_width=True)
@@ -867,14 +761,10 @@ if st.session_state.current_run:
             ])
             
             fig_pole.update_layout(
-                polar=dict(
-                    radialaxis=dict(visible=True, range=[0, 1]),
-                    bgcolor='var(--bg-card)'
-                ),
+                polar=dict(radialaxis=dict(visible=True, range=[0, 1])),
                 showlegend=False,
                 height=250,
-                margin=dict(l=20, r=20, t=20, b=20),
-                paper_bgcolor='var(--bg-primary)'
+                margin=dict(l=20, r=20, t=20, b=20)
             )
             
             st.plotly_chart(fig_pole, use_container_width=True)
@@ -915,9 +805,6 @@ if st.session_state.current_run:
                     gauge={
                         'axis': {'range': [0, 100], 'tickwidth': 1},
                         'bar': {'color': color, 'thickness': 0.2},
-                        'bgcolor': "var(--bg-card)",
-                        'borderwidth': 2,
-                        'bordercolor': "var(--border-color)",
                         'steps': [
                             {'range': [0, 30], 'color': 'rgba(39, 174, 96, 0.1)'},
                             {'range': [30, 60], 'color': 'rgba(243, 156, 18, 0.1)'},
@@ -928,9 +815,7 @@ if st.session_state.current_run:
                 
                 fig.update_layout(
                     height=180,
-                    margin=dict(l=20, r=20, t=30, b=20),
-                    paper_bgcolor='var(--bg-primary)',
-                    font=dict(color='var(--text-primary)')
+                    margin=dict(l=20, r=20, t=30, b=20)
                 )
                 
                 st.plotly_chart(fig, use_container_width=True)
@@ -958,10 +843,7 @@ if st.session_state.current_run:
             fig_defect = px.imshow(defect_map, color_continuous_scale='Reds')
             fig_defect.update_layout(
                 height=400,
-                margin=dict(l=0, r=0, t=20, b=0),
-                paper_bgcolor='var(--bg-primary)',
-                plot_bgcolor='var(--bg-primary)',
-                font=dict(color='var(--text-primary)')
+                margin=dict(l=0, r=0, t=20, b=0)
             )
             
             st.plotly_chart(fig_defect, use_container_width=True)
@@ -987,6 +869,7 @@ if st.session_state.current_run:
             
             # Process window status
             st.markdown('<div class="subsection-header">Process Window Status</div>', unsafe_allow_html=True)
+            ved_ratio = params['VED'] / mat_props["optimal_ved"]
             if 0.8 < ved_ratio < 1.2:
                 st.success("✓ Within optimal VED range")
             else:
@@ -1021,22 +904,17 @@ if st.session_state.current_run:
                 x=[params['laser_power']],
                 y=[params['scan_speed']],
                 mode='markers',
-                marker=dict(size=20, color='var(--text-primary)', symbol='circle'),
+                marker=dict(size=20, color='black', symbol='circle'),
                 name='Current Point'
             ))
             
             fig_contour.update_layout(
                 title=dict(text=f"Process Window: {params['material']}", 
-                          font=dict(size=14, color='var(--text-primary)')),
+                          font=dict(size=14)),
                 xaxis_title="Laser Power (W)",
                 yaxis_title="Scan Speed (mm/s)",
                 height=500,
-                margin=dict(l=0, r=20, t=40, b=0),
-                paper_bgcolor='var(--bg-primary)',
-                plot_bgcolor='var(--bg-primary)',
-                font=dict(color='var(--text-primary)'),
-                xaxis=dict(gridcolor='var(--border-color)'),
-                yaxis=dict(gridcolor='var(--border-color)')
+                margin=dict(l=0, r=20, t=40, b=0)
             )
             
             st.plotly_chart(fig_contour, use_container_width=True)
