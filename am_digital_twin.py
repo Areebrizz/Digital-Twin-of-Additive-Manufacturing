@@ -3,7 +3,6 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
-from plotly.subplots import make_subplots
 import matplotlib.pyplot as plt
 import matplotlib
 matplotlib.use('Agg')
@@ -13,7 +12,7 @@ import base64
 from fpdf import FPDF
 import time
 
-# Page configuration - Professional light theme
+# Page configuration
 st.set_page_config(
     page_title="AM Digital Twin: Predictive Process Modeling",
     page_icon="🏭",
@@ -21,66 +20,133 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Professional CSS with clean, academic styling
-st.markdown("""
+# Initialize theme in session state
+if 'theme' not in st.session_state:
+    st.session_state.theme = 'light'
+
+# Theme CSS
+if st.session_state.theme == 'light':
+    theme_css = """
+    <style>
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8f9fa;
+            --bg-card: #ffffff;
+            --text-primary: #2c3e50;
+            --text-secondary: #7f8c8d;
+            --text-muted: #95a5a6;
+            --border-color: #ecf0f1;
+            --accent-color: #3498db;
+            --accent-hover: #2980b9;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --danger-color: #e74c3c;
+            --shadow: rgba(0,0,0,0.05);
+            --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+        
+        .theme-toggle {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+    </style>
+    """
+else:
+    theme_css = """
+    <style>
+        :root {
+            --bg-primary: #1a1a2e;
+            --bg-secondary: #16213e;
+            --bg-card: #0f3460;
+            --text-primary: #e6e6e6;
+            --text-secondary: #b0b0b0;
+            --text-muted: #8a8a8a;
+            --border-color: #2a2a3e;
+            --accent-color: #3498db;
+            --accent-hover: #2980b9;
+            --success-color: #2ecc71;
+            --warning-color: #f1c40f;
+            --danger-color: #e74c3c;
+            --shadow: rgba(0,0,0,0.2);
+            --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+        
+        .theme-toggle {
+            background: var(--bg-card);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+        
+        .plotly-graph-div .js-plotly-plot, 
+        .plotly-graph-div .plotly,
+        .plot-container {
+            background: var(--bg-card) !important;
+        }
+    </style>
+    """
+
+# Main CSS with theme variables
+st.markdown(theme_css + """
 <style>
-    /* Main styling - Clean academic theme */
+    /* Main styling - Theme-aware */
     .main-title {
         font-size: 2.5rem;
         font-weight: 700;
-        color: #2c3e50;
+        color: var(--text-primary);
         text-align: center;
         margin-bottom: 1rem;
         padding-bottom: 1rem;
-        border-bottom: 2px solid #3498db;
+        border-bottom: 2px solid var(--accent-color);
         font-family: 'Georgia', serif;
     }
     
     .section-header {
         font-size: 1.4rem;
         font-weight: 600;
-        color: #2c3e50;
+        color: var(--text-primary);
         margin-top: 1.5rem;
         margin-bottom: 1rem;
         padding-bottom: 0.5rem;
-        border-bottom: 1px solid #ecf0f1;
+        border-bottom: 1px solid var(--border-color);
         font-family: 'Helvetica Neue', sans-serif;
     }
     
     .subsection-header {
         font-size: 1.2rem;
         font-weight: 600;
-        color: #34495e;
+        color: var(--text-primary);
         margin-top: 1rem;
         margin-bottom: 0.5rem;
         font-family: 'Helvetica Neue', sans-serif;
     }
     
     .metric-card {
-        background: #ffffff;
-        border: 1px solid #ecf0f1;
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
         border-radius: 6px;
         padding: 1rem;
         margin: 0.5rem 0;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        transition: box-shadow 0.2s;
+        box-shadow: var(--card-shadow);
+        transition: transform 0.2s, box-shadow 0.2s;
     }
     
     .metric-card:hover {
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px var(--shadow);
     }
     
     .metric-value {
         font-size: 1.6rem;
         font-weight: 700;
-        color: #2c3e50;
+        color: var(--text-primary);
         margin-bottom: 0.2rem;
         font-family: 'Helvetica Neue', sans-serif;
     }
     
     .metric-label {
         font-size: 0.85rem;
-        color: #7f8c8d;
+        color: var(--text-secondary);
         text-transform: uppercase;
         letter-spacing: 0.5px;
         font-weight: 500;
@@ -88,40 +154,40 @@ st.markdown("""
     
     .stTabs [data-baseweb="tab-list"] {
         gap: 4px;
-        background-color: #f8f9fa;
+        background-color: var(--bg-secondary);
         padding: 4px;
         border-radius: 6px;
     }
     
     .stTabs [data-baseweb="tab"] {
         height: 36px;
-        background-color: #ffffff;
+        background-color: var(--bg-card);
         border-radius: 4px;
         padding: 0 16px;
-        color: #7f8c8d;
-        border: 1px solid #ecf0f1;
+        color: var(--text-secondary);
+        border: 1px solid var(--border-color);
         font-weight: 500;
     }
     
     .stTabs [aria-selected="true"] {
-        background-color: #3498db;
+        background-color: var(--accent-color);
         color: white;
-        border-color: #3498db;
+        border-color: var(--accent-color);
     }
     
     /* Sidebar styling */
     .sidebar .sidebar-content {
-        background: #ffffff;
-        border-right: 1px solid #ecf0f1;
+        background: var(--bg-primary);
+        border-right: 1px solid var(--border-color);
     }
     
-    /* Streamlit native elements override - Clean academic style */
+    /* Streamlit native elements override */
     .stSlider > div > div > div {
-        background: #3498db;
+        background: var(--accent-color);
     }
     
     .stButton > button {
-        background: #3498db;
+        background: var(--accent-color);
         color: white;
         border: none;
         padding: 0.5rem 1rem;
@@ -131,24 +197,14 @@ st.markdown("""
     }
     
     .stButton > button:hover {
-        background: #2980b9;
+        background: var(--accent-hover);
         box-shadow: 0 2px 4px rgba(52, 152, 219, 0.2);
     }
     
     /* Status indicators */
-    .status-optimal { color: #27ae60; }
-    .status-warning { color: #f39c12; }
-    .status-critical { color: #e74c3c; }
-    
-    /* Custom container */
-    .custom-container {
-        background: #ffffff;
-        border-radius: 8px;
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
-        border: 1px solid #ecf0f1;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-    }
+    .status-optimal { color: var(--success-color); }
+    .status-warning { color: var(--warning-color); }
+    .status-critical { color: var(--danger-color); }
     
     /* Material color chips */
     .material-chip {
@@ -163,9 +219,55 @@ st.markdown("""
     /* Citation style */
     .citation {
         font-size: 0.75rem;
-        color: #95a5a6;
+        color: var(--text-muted);
         font-style: italic;
         margin-top: 0.5rem;
+    }
+    
+    /* Info box */
+    .info-box {
+        background: var(--bg-card);
+        padding: 1rem;
+        border-radius: 6px;
+        border-left: 4px solid var(--accent-color);
+        margin-bottom: 1.5rem;
+    }
+    
+    /* Theme toggle button */
+    .theme-toggle-btn {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        z-index: 1000;
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: var(--card-shadow);
+    }
+    
+    /* Credit footer */
+    .credit-footer {
+        text-align: center;
+        color: var(--text-muted);
+        font-size: 0.85rem;
+        margin-top: 3rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--border-color);
+    }
+    
+    .credit-footer a {
+        color: var(--accent-color);
+        text-decoration: none;
+    }
+    
+    .credit-footer a:hover {
+        text-decoration: underline;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -178,7 +280,7 @@ if 'current_run' not in st.session_state:
 if 'comparison_mode' not in st.session_state:
     st.session_state.comparison_mode = False
 
-# Material Properties Database (Expanded)
+# Material Properties Database
 MATERIAL_DB = {
     "Ti-6Al-4V": {
         "density": 4430,
@@ -189,7 +291,7 @@ MATERIAL_DB = {
         "youngs_modulus": 113.8,
         "optimal_ved": 60,
         "phase_transition_temp": 980,
-        "color": "#2c3e50"
+        "color": "#3498db"
     },
     "Inconel 718": {
         "density": 8190,
@@ -200,7 +302,7 @@ MATERIAL_DB = {
         "youngs_modulus": 200,
         "optimal_ved": 50,
         "phase_transition_temp": 1300,
-        "color": "#3498db"
+        "color": "#e74c3c"
     },
     "SS316L": {
         "density": 7990,
@@ -211,7 +313,7 @@ MATERIAL_DB = {
         "youngs_modulus": 193,
         "optimal_ved": 70,
         "phase_transition_temp": 1400,
-        "color": "#e74c3c"
+        "color": "#2ecc71"
     },
     "AlSi10Mg": {
         "density": 2670,
@@ -222,35 +324,36 @@ MATERIAL_DB = {
         "youngs_modulus": 70,
         "optimal_ved": 40,
         "phase_transition_temp": 577,
-        "color": "#27ae60"
-    },
-    "CoCrMo": {
-        "density": 8300,
-        "thermal_conductivity": 13.5,
-        "specific_heat": 430,
-        "melting_point": 1650,
-        "thermal_expansion": 12.5e-6,
-        "youngs_modulus": 230,
-        "optimal_ved": 55,
-        "phase_transition_temp": 1200,
-        "color": "#8e44ad"
+        "color": "#f39c12"
     }
 }
 
+# Theme toggle button
+col1, col2, col3 = st.columns([3, 1, 1])
+with col3:
+    theme_icon = "🌙" if st.session_state.theme == 'light' else "☀️"
+    theme_label = "Dark" if st.session_state.theme == 'light' else "Light"
+    if st.button(f"{theme_icon} {theme_label} Mode", key="theme_toggle"):
+        st.session_state.theme = 'dark' if st.session_state.theme == 'light' else 'light'
+        st.rerun()
+
 # Title with academic styling
-st.markdown('<h1 class="main-title">🏭 Additive Manufacturing Digital Twin: Predictive Process Modeling</h1>', unsafe_allow_html=True)
+st.markdown('<h1 class="main-title">🏭 Additive Manufacturing Digital Twin</h1>', unsafe_allow_html=True)
 
 # Brief description
-st.markdown("""
-<div style="text-align: center; color: #7f8c8d; margin-bottom: 2rem; font-size: 1rem;">
-    A physics-based simulation platform for predicting thermal history, microstructure evolution, 
-    and defect formation in laser powder bed fusion processes.
+st.markdown(f"""
+<div class="info-box">
+    <div style="font-size: 0.9rem; color: var(--text-secondary);">Platform Overview</div>
+    <div style="font-size: 1rem; color: var(--text-primary); line-height: 1.6;">
+        A physics-based simulation platform for predicting thermal history, microstructure evolution, 
+        and defect formation in laser powder bed fusion processes.
+    </div>
 </div>
 """, unsafe_allow_html=True)
 
 # Sidebar with clean academic controls
 with st.sidebar:
-    st.markdown("### Process Parameters")
+    st.markdown("### ⚙️ Process Parameters")
     st.markdown("---")
     
     # Material selection
@@ -260,7 +363,7 @@ with st.sidebar:
         help="Select powder material for simulation"
     )
     
-    # Display material properties in clean format
+    # Display material properties
     mat_props = MATERIAL_DB[material]
     with st.expander("📊 Material Properties", expanded=False):
         cols = st.columns(2)
@@ -271,7 +374,7 @@ with st.sidebar:
     
     st.markdown("---")
     
-    # Process parameters with clean layout
+    # Process parameters
     st.markdown("#### Laser Parameters")
     laser_power = st.slider(
         "Laser Power (W)", 
@@ -316,7 +419,7 @@ with st.sidebar:
     
     scan_strategy = st.selectbox(
         "Scan Strategy", 
-        ["Bidirectional", "Island (5x5mm)", "Spiral", "Chessboard", "Custom"],
+        ["Bidirectional", "Island (5x5mm)", "Spiral", "Chessboard"],
         help="Laser scanning pattern"
     )
     
@@ -344,7 +447,7 @@ with st.sidebar:
     # Control buttons
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("▶️ Run Simulation", use_container_width=True):
+        if st.button("▶️ Run Simulation", use_container_width=True, type="primary"):
             with st.spinner("Computing thermal field..."):
                 time.sleep(0.5)
                 st.session_state.current_run = {
@@ -382,10 +485,7 @@ with st.sidebar:
                 cols[0].metric("Power", f"{p['laser_power']} W")
                 cols[1].metric("Speed", f"{p['scan_speed']} mm/s")
 
-# ============================================================================
-# SCIENTIFIC MODELS (Keep the same functions)
-# ============================================================================
-
+# Scientific Models
 def solve_heat_transfer(params):
     """Finite difference solution of heat conduction with moving source"""
     laser_power = params["laser_power"]
@@ -399,15 +499,11 @@ def solve_heat_transfer(params):
     y = np.linspace(-2.5, 2.5, ny)
     X, Y = np.meshgrid(x, y)
     
-    # Material properties
-    alpha = material["thermal_conductivity"] / (material["density"] * material["specific_heat"])
-    
     # Gaussian heat source
     eta = 0.65  # Absorption coefficient
     q_max = (2 * eta * laser_power) / (np.pi * beam_radius**2)
     
-    # Distance from heat source center (moving at scan speed)
-    t = 0.01  # Time increment
+    # Distance from heat source center
     x0, y0 = 0, 0  # Heat source center
     
     # Temperature field initialization
@@ -418,7 +514,7 @@ def solve_heat_transfer(params):
     q = q_max * np.exp(-2 * r_squared / beam_radius**2)
     
     # Add heat source contribution
-    T += q * t / (material["density"] * material["specific_heat"])
+    T += q * 0.01 / (material["density"] * material["specific_heat"])
     
     # Apply diffusion
     T = ndimage.gaussian_filter(T, sigma=0.8)
@@ -439,7 +535,7 @@ def predict_cooling_rate(T_field, time_step=0.001):
     # Simulate cooling by diffusion
     T_cooled = ndimage.gaussian_filter(T_field, sigma=1.2)
     cooling_rate = (T_field - T_cooled).mean() / time_step
-    return max(cooling_rate, 1e-3)  # Avoid zero division
+    return max(cooling_rate, 1e-3)
 
 def predict_grain_size(cooling_rate, material):
     """Modified Hunt model for AM with material-specific constants"""
@@ -457,7 +553,7 @@ def predict_grain_size(cooling_rate, material):
     else:
         grain_size = 100
     
-    return min(grain_size, 200)  # Limit maximum grain size
+    return min(grain_size, 200)
 
 def predict_microstructure_phases(material, cooling_rate):
     """Predict phase fractions based on material and cooling rate"""
@@ -497,7 +593,7 @@ def calculate_defect_risks(params, T_field, cooling_rate):
     optimal_ved = material["optimal_ved"]
     VED = params["VED"]
     
-    # Porosity risk (sigmoid function)
+    # Porosity risk
     porosity_risk = 50 * (1 + np.tanh(0.15 * (VED - optimal_ved)))
     
     # Lack of fusion risk
@@ -528,10 +624,7 @@ def calculate_defect_risks(params, T_field, cooling_rate):
         "residual_stress": min(residual_stress, 1000)
     }
 
-# ============================================================================
-# MAIN DASHBOARD - Clean academic layout
-# ============================================================================
-
+# Main Dashboard
 if st.session_state.current_run:
     params = st.session_state.current_run["params"]
     mat_props = MATERIAL_DB[params["material"]]
@@ -549,19 +642,23 @@ if st.session_state.current_run:
     
     # Current simulation info
     st.markdown(f"""
-    <div style="background: #f8f9fa; padding: 1rem; border-radius: 6px; border-left: 4px solid {mat_props['color']}; margin-bottom: 1.5rem;">
-        <div style="font-size: 0.9rem; color: #7f8c8d;">Current Simulation</div>
-        <div style="font-size: 1.2rem; font-weight: 600; color: #2c3e50;">{params['material']} | Power: {params['laser_power']}W | Speed: {params['scan_speed']}mm/s</div>
-        <div style="font-size: 0.85rem; color: #95a5a6; margin-top: 0.2rem;">VED: {params['VED']:.1f} J/mm³ | Time: {st.session_state.current_run['timestamp'].strftime('%H:%M:%S')}</div>
+    <div class="info-box">
+        <div style="font-size: 0.9rem; color: var(--text-secondary);">Current Simulation</div>
+        <div style="font-size: 1.2rem; font-weight: 600; color: var(--text-primary);">
+            {params['material']} | Power: {params['laser_power']}W | Speed: {params['scan_speed']}mm/s
+        </div>
+        <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.2rem;">
+            VED: {params['VED']:.1f} J/mm³ | Time: {st.session_state.current_run['timestamp'].strftime('%H:%M:%S')}
+        </div>
     </div>
     """, unsafe_allow_html=True)
     
     # Main dashboard layout
     tab1, tab2, tab3, tab4 = st.tabs([
-        "Thermal Analysis",
-        "Microstructure Prediction", 
-        "Defect Assessment",
-        "Process Optimization"
+        "🌡️ Thermal Analysis",
+        "🔬 Microstructure", 
+        "⚠️ Defect Assessment",
+        "🎯 Process Optimization"
     ])
     
     with tab1:
@@ -570,49 +667,33 @@ if st.session_state.current_run:
         with col1:
             st.markdown('<div class="section-header">Temperature Distribution</div>', unsafe_allow_html=True)
             
-            # 3D Thermal Visualization - Clean academic style
+            # 3D Thermal Visualization
             fig_3d = go.Figure(data=[
                 go.Surface(
                     z=T_field,
                     x=X,
                     y=Y,
                     colorscale='Viridis',
-                    contours_z=dict(
-                        show=True,
-                        usecolormap=True,
-                        highlightcolor="red",
-                        project_z=True
-                    ),
-                    lighting=dict(
-                        ambient=0.8,
-                        diffuse=0.8,
-                        roughness=0.9,
-                        specular=0.2
-                    )
+                    contours_z=dict(show=True, usecolormap=True),
+                    lighting=dict(ambient=0.8, diffuse=0.8)
                 )
             ])
             
             fig_3d.update_layout(
-                title=dict(
-                    text=f"Temperature Distribution - {params['material']}",
-                    font=dict(size=14, color='#2c3e50'),
-                    x=0.5,
-                    xanchor='center'
-                ),
+                title=dict(text=f"Temperature Distribution - {params['material']}", 
+                          font=dict(size=14, color='var(--text-primary)')),
                 scene=dict(
                     xaxis_title="X (mm)",
-                    yaxis_title="Y (mm)",
+                    yaxis_title="Y (mm)", 
                     zaxis_title="Temperature (°C)",
-                    camera=dict(
-                        eye=dict(x=1.7, y=1.7, z=0.8)
-                    ),
-                    bgcolor='white'
+                    camera=dict(eye=dict(x=1.7, y=1.7, z=0.8)),
+                    bgcolor='var(--bg-card)'
                 ),
                 height=450,
                 margin=dict(l=0, r=0, t=40, b=0),
-                paper_bgcolor='white',
-                plot_bgcolor='white',
-                font=dict(color='#2c3e50')
+                paper_bgcolor='var(--bg-primary)',
+                plot_bgcolor='var(--bg-primary)',
+                font=dict(color='var(--text-primary)')
             )
             
             st.plotly_chart(fig_3d, use_container_width=True)
@@ -620,15 +701,7 @@ if st.session_state.current_run:
             # 2D Heatmap
             st.markdown('<div class="subsection-header">2D Cross-section</div>', unsafe_allow_html=True)
             fig_2d = go.Figure(data=[
-                go.Heatmap(
-                    z=T_field,
-                    colorscale='Viridis',
-                    colorbar=dict(
-                        title="Temperature (°C)",
-                        titlefont=dict(color='#2c3e50'),
-                        tickfont=dict(color='#2c3e50')
-                    )
-                )
+                go.Heatmap(z=T_field, colorscale='Viridis')
             ])
             
             fig_2d.update_layout(
@@ -636,9 +709,9 @@ if st.session_state.current_run:
                 yaxis_title="Y (mm)",
                 height=300,
                 margin=dict(l=0, r=0, t=20, b=0),
-                paper_bgcolor='white',
-                plot_bgcolor='white',
-                font=dict(color='#2c3e50')
+                paper_bgcolor='var(--bg-primary)',
+                plot_bgcolor='var(--bg-primary)',
+                font=dict(color='var(--text-primary)')
             )
             
             st.plotly_chart(fig_2d, use_container_width=True)
@@ -646,7 +719,7 @@ if st.session_state.current_run:
         with col2:
             st.markdown('<div class="section-header">Thermal Metrics</div>', unsafe_allow_html=True)
             
-            # Key metrics in clean cards
+            # Key metrics in cards
             metrics_data = [
                 ("Peak Temperature", f"{peak_temp:.0f} °C", f"{'High' if peak_temp > 2500 else 'Normal'}"),
                 ("Average Temperature", f"{avg_temp:.0f} °C", ""),
@@ -661,14 +734,14 @@ if st.session_state.current_run:
                 <div class="metric-card">
                     <div class="metric-label">{label}</div>
                     <div class="metric-value">{value}</div>
-                    <div style="font-size: 0.75rem; color: #95a5a6; margin-top: 0.2rem;">{note}</div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem;">{note}</div>
                 </div>
                 """, unsafe_allow_html=True)
             
             # Material properties summary
             st.markdown('<div class="subsection-header">Material Properties</div>', unsafe_allow_html=True)
             st.markdown(f"""
-            <div style="font-size: 0.9rem; color: #2c3e50;">
+            <div style="font-size: 0.9rem; color: var(--text-primary);">
                 <div style="margin-bottom: 0.3rem;">• Melting Point: {mat_props['melting_point']}°C</div>
                 <div style="margin-bottom: 0.3rem;">• Thermal Conductivity: {mat_props['thermal_conductivity']} W/m·K</div>
                 <div style="margin-bottom: 0.3rem;">• Specific Heat: {mat_props['specific_heat']} J/kg·K</div>
@@ -677,8 +750,6 @@ if st.session_state.current_run:
             """, unsafe_allow_html=True)
     
     with tab2:
-        st.markdown('<div class="section-header">Microstructure Prediction</div>', unsafe_allow_html=True)
-        
         col1, col2 = st.columns(2)
         
         with col1:
@@ -688,15 +759,15 @@ if st.session_state.current_run:
             fig_grain = go.Figure(go.Indicator(
                 mode="number+gauge",
                 value=grain_size,
-                number={'suffix': " µm", 'font': {'size': 24, 'color': '#2c3e50'}},
+                number={'suffix': " µm", 'font': {'size': 24, 'color': 'var(--text-primary)'}},
                 domain={'x': [0, 1], 'y': [0, 1]},
-                title={'text': "Average Grain Size", 'font': {'size': 14, 'color': '#2c3e50'}},
+                title={'text': "Average Grain Size", 'font': {'size': 14, 'color': 'var(--text-primary)'}},
                 gauge={
-                    'axis': {'range': [0, 200], 'tickwidth': 1, 'tickcolor': '#2c3e50'},
+                    'axis': {'range': [0, 200], 'tickwidth': 1, 'tickcolor': 'var(--text-primary)'},
                     'bar': {'color': mat_props['color']},
-                    'bgcolor': "white",
+                    'bgcolor': "var(--bg-card)",
                     'borderwidth': 2,
-                    'bordercolor': "#ecf0f1",
+                    'bordercolor': "var(--border-color)",
                     'steps': [
                         {'range': [0, 50], 'color': 'rgba(39, 174, 96, 0.1)'},
                         {'range': [50, 100], 'color': 'rgba(243, 156, 18, 0.1)'},
@@ -708,8 +779,7 @@ if st.session_state.current_run:
             fig_grain.update_layout(
                 height=200,
                 margin=dict(l=20, r=20, t=50, b=20),
-                paper_bgcolor='white',
-                font=dict(color='#2c3e50')
+                paper_bgcolor='var(--bg-primary)'
             )
             
             st.plotly_chart(fig_grain, use_container_width=True)
@@ -730,19 +800,13 @@ if st.session_state.current_run:
             for _ in range(3):
                 grain_data = ndimage.gaussian_filter(grain_data, sigma=1.5)
             
-            fig_structure = px.imshow(
-                grain_data,
-                color_continuous_scale='gray',
-                title="Simulated Grain Structure"
-            )
-            
+            fig_structure = px.imshow(grain_data, color_continuous_scale='gray')
             fig_structure.update_layout(
                 coloraxis_showscale=False,
                 margin=dict(l=0, r=0, t=30, b=0),
-                paper_bgcolor='white',
-                plot_bgcolor='white',
-                font=dict(color='#2c3e50'),
-                title_font=dict(size=12)
+                paper_bgcolor='var(--bg-primary)',
+                plot_bgcolor='var(--bg-primary)',
+                font=dict(color='var(--text-primary)')
             )
             
             st.plotly_chart(fig_structure, use_container_width=True)
@@ -759,20 +823,19 @@ if st.session_state.current_run:
                     marker=dict(colors=['#3498db', '#e74c3c', '#2ecc71', '#f39c12']),
                     textinfo='label+percent',
                     textposition='inside',
-                    hoverinfo='label+value+percent',
-                    textfont=dict(size=11, color='#2c3e50')
+                    hoverinfo='label+value+percent'
                 )
             ])
             
             fig_phases.update_layout(
                 height=300,
                 margin=dict(l=20, r=20, t=20, b=20),
-                paper_bgcolor='white',
-                plot_bgcolor='white',
+                paper_bgcolor='var(--bg-primary)',
+                plot_bgcolor='var(--bg-primary)',
                 legend=dict(
-                    font=dict(color='#2c3e50'),
-                    bgcolor='rgba(255,255,255,0.8)',
-                    bordercolor='#ecf0f1'
+                    font=dict(color='var(--text-primary)'),
+                    bgcolor='var(--bg-card)',
+                    bordercolor='var(--border-color)'
                 )
             )
             
@@ -805,21 +868,13 @@ if st.session_state.current_run:
             
             fig_pole.update_layout(
                 polar=dict(
-                    radialaxis=dict(
-                        visible=True,
-                        range=[0, 1],
-                        tickfont=dict(color='#2c3e50')
-                    ),
-                    angularaxis=dict(
-                        tickfont=dict(color='#2c3e50'),
-                        rotation=90
-                    ),
-                    bgcolor='white'
+                    radialaxis=dict(visible=True, range=[0, 1]),
+                    bgcolor='var(--bg-card)'
                 ),
                 showlegend=False,
                 height=250,
                 margin=dict(l=20, r=20, t=20, b=20),
-                paper_bgcolor='white'
+                paper_bgcolor='var(--bg-primary)'
             )
             
             st.plotly_chart(fig_pole, use_container_width=True)
@@ -828,8 +883,6 @@ if st.session_state.current_run:
             st.metric("Texture Strength Index", f"{texture_index:.2f}")
     
     with tab3:
-        st.markdown('<div class="section-header">Defect Risk Assessment</div>', unsafe_allow_html=True)
-        
         col1, col2 = st.columns([1, 2])
         
         with col1:
@@ -846,7 +899,6 @@ if st.session_state.current_run:
             for defect, (name, color) in defect_info.items():
                 risk = defects[defect]
                 
-                # Risk level text
                 if risk < 30:
                     risk_level = "Low"
                 elif risk < 60:
@@ -857,15 +909,15 @@ if st.session_state.current_run:
                 fig = go.Figure(go.Indicator(
                     mode="gauge+number",
                     value=risk,
-                    number={'suffix': "%", 'font': {'size': 18, 'color': '#2c3e50'}},
+                    number={'suffix': "%", 'font': {'size': 18}},
                     domain={'x': [0, 1], 'y': [0, 1]},
-                    title={'text': f"{name}<br>{risk_level}", 'font': {'size': 12, 'color': '#2c3e50'}},
+                    title={'text': f"{name}<br>{risk_level}"},
                     gauge={
-                        'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': '#2c3e50'},
+                        'axis': {'range': [0, 100], 'tickwidth': 1},
                         'bar': {'color': color, 'thickness': 0.2},
-                        'bgcolor': "white",
+                        'bgcolor': "var(--bg-card)",
                         'borderwidth': 2,
-                        'bordercolor': "#ecf0f1",
+                        'bordercolor': "var(--border-color)",
                         'steps': [
                             {'range': [0, 30], 'color': 'rgba(39, 174, 96, 0.1)'},
                             {'range': [30, 60], 'color': 'rgba(243, 156, 18, 0.1)'},
@@ -877,8 +929,8 @@ if st.session_state.current_run:
                 fig.update_layout(
                     height=180,
                     margin=dict(l=20, r=20, t=30, b=20),
-                    paper_bgcolor='white',
-                    font=dict(color='#2c3e50')
+                    paper_bgcolor='var(--bg-primary)',
+                    font=dict(color='var(--text-primary)')
                 )
                 
                 st.plotly_chart(fig, use_container_width=True)
@@ -903,23 +955,13 @@ if st.session_state.current_run:
                     defect_prob += 10 * np.random.randn() * (distance < 30)
                     defect_map[i, j] = min(max(defect_prob, 0), 100)
             
-            fig_defect = px.imshow(
-                defect_map,
-                color_continuous_scale='Reds',
-                labels={'color': 'Probability (%)'},
-                width=600,
-                height=400
-            )
-            
+            fig_defect = px.imshow(defect_map, color_continuous_scale='Reds')
             fig_defect.update_layout(
+                height=400,
                 margin=dict(l=0, r=0, t=20, b=0),
-                paper_bgcolor='white',
-                plot_bgcolor='white',
-                font=dict(color='#2c3e50'),
-                coloraxis_colorbar=dict(
-                    title_font=dict(color='#2c3e50'),
-                    tickfont=dict(color='#2c3e50')
-                )
+                paper_bgcolor='var(--bg-primary)',
+                plot_bgcolor='var(--bg-primary)',
+                font=dict(color='var(--text-primary)')
             )
             
             st.plotly_chart(fig_defect, use_container_width=True)
@@ -929,23 +971,19 @@ if st.session_state.current_run:
             
             recommendations = []
             if defects["porosity"] > 60:
-                recommendations.append("Reduce VED (decrease power or increase speed) to reduce porosity risk")
+                recommendations.append("Reduce VED (decrease power or increase speed)")
             if defects["lack_of_fusion"] > 60:
-                recommendations.append("Increase VED (increase power or decrease speed) to improve fusion")
+                recommendations.append("Increase VED (increase power or decrease speed)")
             if defects["residual_stress"] > 500:
-                recommendations.append("Implement post-build stress relief annealing")
+                recommendations.append("Consider stress relief annealing")
             if cooling_rate > 1000:
-                recommendations.append("Increase preheat temperature to reduce cooling rate")
-            if ved_ratio < 0.8:
-                recommendations.append(f"Aim for VED closer to {mat_props['optimal_ved']} J/mm³")
-            elif ved_ratio > 1.2:
-                recommendations.append(f"Reduce VED toward {mat_props['optimal_ved']} J/mm³")
+                recommendations.append("Increase preheat temperature")
             
             if recommendations:
                 for i, rec in enumerate(recommendations, 1):
                     st.info(f"{i}. {rec}")
             else:
-                st.success("Current parameters appear optimal for this material")
+                st.success("Current parameters appear optimal")
             
             # Process window status
             st.markdown('<div class="subsection-header">Process Window Status</div>', unsafe_allow_html=True)
@@ -955,8 +993,6 @@ if st.session_state.current_run:
                 st.warning(f"⚠️ VED deviation: {((ved_ratio-1)*100):.0f}% from optimal")
     
     with tab4:
-        st.markdown('<div class="section-header">Process Optimization</div>', unsafe_allow_html=True)
-        
         col1, col2 = st.columns([3, 1])
         
         with col1:
@@ -973,65 +1009,38 @@ if st.session_state.current_run:
             quality_score = 100 * np.exp(-((VED_grid - optimal_ved) / (0.3 * optimal_ved))**2)
             
             # Create contour plot
-            fig_contour = go.Figure(data=[
-                go.Contour(
-                    z=quality_score,
-                    x=power_range,
-                    y=speed_range,
-                    colorscale='RdYlGn',
-                    contours=dict(
-                        showlabels=True,
-                        labelfont=dict(size=10, color='#2c3e50')
-                    ),
-                    colorbar=dict(
-                        title="Quality Score",
-                        titlefont=dict(color='#2c3e50'),
-                        tickfont=dict(color='#2c3e50')
-                    ),
-                    hovertemplate="Power: %{x} W<br>Speed: %{y} mm/s<br>Score: %{z:.1f}<extra></extra>"
-                ),
-                go.Scatter(
-                    x=[params['laser_power']],
-                    y=[params['scan_speed']],
-                    mode='markers',
-                    marker=dict(
-                        size=20,
-                        color='#2c3e50',
-                        symbol='circle',
-                        line=dict(width=2, color='white')
-                    ),
-                    name='Current Point',
-                    hovertemplate="Current Parameters<br>Power: %{x} W<br>Speed: %{y} mm/s<extra></extra>"
-                )
-            ])
+            fig_contour = go.Figure(data=go.Contour(
+                z=quality_score,
+                x=power_range,
+                y=speed_range,
+                colorscale='RdYlGn',
+                contours=dict(showlabels=True)
+            ))
+            
+            fig_contour.add_trace(go.Scatter(
+                x=[params['laser_power']],
+                y=[params['scan_speed']],
+                mode='markers',
+                marker=dict(size=20, color='var(--text-primary)', symbol='circle'),
+                name='Current Point'
+            ))
             
             fig_contour.update_layout(
-                title=dict(
-                    text=f"Process Window: {params['material']}",
-                    font=dict(size=14, color='#2c3e50'),
-                    x=0.5,
-                    xanchor='center'
-                ),
+                title=dict(text=f"Process Window: {params['material']}", 
+                          font=dict(size=14, color='var(--text-primary)')),
                 xaxis_title="Laser Power (W)",
                 yaxis_title="Scan Speed (mm/s)",
                 height=500,
-                margin=dict(l=0, r=0, t=40, b=0),
-                paper_bgcolor='white',
-                plot_bgcolor='white',
-                font=dict(color='#2c3e50'),
-                xaxis=dict(
-                    gridcolor='#ecf0f1',
-                    zerolinecolor='#bdc3c7'
-                ),
-                yaxis=dict(
-                    gridcolor='#ecf0f1',
-                    zerolinecolor='#bdc3c7'
-                )
+                margin=dict(l=0, r=20, t=40, b=0),
+                paper_bgcolor='var(--bg-primary)',
+                plot_bgcolor='var(--bg-primary)',
+                font=dict(color='var(--text-primary)'),
+                xaxis=dict(gridcolor='var(--border-color)'),
+                yaxis=dict(gridcolor='var(--border-color)')
             )
             
             st.plotly_chart(fig_contour, use_container_width=True)
             
-            # Optimization explanation
             with st.expander("Optimization Methodology"):
                 st.markdown("""
                 The process window is optimized using:
@@ -1040,8 +1049,6 @@ if st.session_state.current_run:
                 2. **Material-specific optimal VED**: Based on literature values for each alloy
                 3. **Quality score**: Exponential decay function centered at optimal VED
                 4. **Process boundaries**: Defined by ±30% deviation from optimal VED
-                
-                Optimization aims to maximize quality score while maintaining process stability.
                 """)
         
         with col2:
@@ -1059,7 +1066,7 @@ if st.session_state.current_run:
             col_a.metric("Current Score", f"{current_score:.0f}%")
             col_b.metric("Optimal Score", "100%")
             
-            st.metric("Potential Improvement", f"{100 - current_score:.0f}%")
+            st.metric("Improvement", f"{100 - current_score:.0f}%")
             
             st.divider()
             
@@ -1089,35 +1096,20 @@ if st.session_state.current_run:
                 b64 = base64.b64encode(csv.encode()).decode()
                 href = f'<a href="data:file/csv;base64,{b64}" download="am_simulation.csv">Download CSV</a>'
                 st.markdown(href, unsafe_allow_html=True)
-    
-    # Footer with clean academic citation
-    st.markdown("---")
-    st.markdown("""
-    <div style="text-align: center; color: #7f8c8d; font-size: 0.85rem; margin-top: 2rem;">
-        <div style="margin-bottom: 0.5rem;">
-            <strong>AM Digital Twin v3.1</strong> | Predictive Process Modeling Platform
-        </div>
-        <div style="font-size: 0.75rem; color: #95a5a6;">
-            Based on heat transfer and solidification models from literature [1-3]<br>
-            [1] King et al., Acta Materialia (2014) | [2] DebRoy et al., Progress in Materials Science (2018) | [3] Hunt, Materials Science and Engineering (1984)
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
 
 else:
-    # Clean welcome/landing page
+    # Welcome page
     st.markdown("""
-    <div style="text-align: center; padding: 3rem 1rem; background: #f8f9fa; border-radius: 8px; margin-bottom: 2rem;">
-        <h2 style="color: #2c3e50; margin-bottom: 1rem;">Predictive Modeling for Additive Manufacturing</h2>
-        <p style="color: #7f8c8d; max-width: 800px; margin: 0 auto; line-height: 1.6;">
+    <div style="text-align: center; padding: 3rem 1rem; background: var(--bg-card); border-radius: 8px; margin-bottom: 2rem;">
+        <h2 style="color: var(--text-primary); margin-bottom: 1rem;">Predictive Modeling for Additive Manufacturing</h2>
+        <p style="color: var(--text-secondary); max-width: 800px; margin: 0 auto; line-height: 1.6;">
             This platform integrates physics-based simulations to predict thermal history, 
-            microstructure evolution, and defect formation in laser powder bed fusion processes. 
-            Configure process parameters in the sidebar to begin simulation.
+            microstructure evolution, and defect formation in laser powder bed fusion processes.
         </p>
     </div>
     """, unsafe_allow_html=True)
     
-    # Quick start in clean layout
+    # Quick start
     st.markdown('<div class="section-header">Quick Start Templates</div>', unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns(3)
@@ -1128,7 +1120,7 @@ else:
         ("AlSi10Mg", "Lightweight structures", 350, 1300, 0.13, 0.06, 120, 38.5, 120)
     ]
     
-    for i, (material_name, description, power, speed, hatch, layer, preheat, ved, beam) in enumerate([templates[0], templates[1], templates[2]]):
+    for i, (material_name, description, power, speed, hatch, layer, preheat, ved, beam) in enumerate(templates):
         with [col1, col2, col3][i]:
             if st.button(f"**{material_name}**\n{description}", use_container_width=True):
                 st.session_state.current_run = {
@@ -1150,43 +1142,36 @@ else:
     # Features overview
     st.markdown('<div class="section-header">Platform Features</div>', unsafe_allow_html=True)
     
-    features_col1, features_col2, features_col3 = st.columns(3)
+    features = [
+        ("Thermal Analysis", "3D temperature field, melt pool geometry, thermal gradients, cooling rates"),
+        ("Microstructure Prediction", "Grain size estimation, phase fractions, texture development"),
+        ("Process Optimization", "VED optimization, defect risk assessment, parameter recommendations")
+    ]
     
-    with features_col1:
-        st.markdown("""
-        <div style="padding: 1rem; background: white; border-radius: 6px; border: 1px solid #ecf0f1;">
-            <div style="font-size: 1.1rem; font-weight: 600; color: #2c3e50; margin-bottom: 0.5rem;">Thermal Analysis</div>
-            <div style="font-size: 0.9rem; color: #7f8c8d;">
-                • 3D temperature field visualization<br>
-                • Melt pool geometry prediction<br>
-                • Thermal gradient calculation<br>
-                • Cooling rate estimation
-            </div>
+    for title, description in features:
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-value">{title}</div>
+            <div style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 0.5rem;">{description}</div>
         </div>
         """, unsafe_allow_html=True)
-    
-    with features_col2:
-        st.markdown("""
-        <div style="padding: 1rem; background: white; border-radius: 6px; border: 1px solid #ecf0f1;">
-            <div style="font-size: 1.1rem; font-weight: 600; color: #2c3e50; margin-bottom: 0.5rem;">Microstructure Prediction</div>
-            <div style="font-size: 0.9rem; color: #7f8c8d;">
-                • Grain size estimation (Hunt model)<br>
-                • Phase fraction prediction<br>
-                • Texture development<br>
-                • Solidification modeling
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with features_col3:
-        st.markdown("""
-        <div style="padding: 1rem; background: white; border-radius: 6px; border: 1px solid #ecf0f1;">
-            <div style="font-size: 1.1rem; font-weight: 600; color: #2c3e50; margin-bottom: 0.5rem;">Process Optimization</div>
-            <div style="font-size: 0.9rem; color: #7f8c8d;">
-                • Volumetric energy density optimization<br>
-                • Defect risk assessment<br>
-                • Process window mapping<br>
-                • Parameter recommendations
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+
+# Credits footer
+st.markdown("""
+<div class="credit-footer">
+    <div style="margin-bottom: 0.5rem;">
+        <strong>AM Digital Twin v4.0</strong> | Predictive Process Modeling Platform
+    </div>
+    <div style="font-size: 0.8rem; margin-bottom: 0.5rem;">
+        Developed by <strong>Muhammad Areeb Rizwan Siddiqui</strong>
+    </div>
+    <div style="font-size: 0.75rem;">
+        <a href="https://www.areebrizwan.com" target="_blank">www.areebrizwan.com</a> | 
+        <a href="https://www.linkedin.com/in/areebrizwan" target="_blank">LinkedIn</a>
+    </div>
+    <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.5rem;">
+        Based on heat transfer and solidification models from literature [1-3]<br>
+        [1] King et al., Acta Materialia (2014) | [2] DebRoy et al., Prog. Mat. Sci. (2018) | [3] Hunt, Mat. Sci. Eng. (1984)
+    </div>
+</div>
+""", unsafe_allow_html=True)
