@@ -12,7 +12,7 @@ from datetime import datetime
 import base64
 from fpdf import FPDF
 import time
-from scipy.signal import gaussian
+from scipy.signal.windows import gaussian
 from scipy.ndimage import gaussian_filter
 
 # Page configuration - Professional dark theme
